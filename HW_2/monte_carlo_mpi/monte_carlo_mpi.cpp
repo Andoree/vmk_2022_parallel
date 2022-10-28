@@ -1,14 +1,12 @@
-﻿// monte_carlo_mpi.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
-//
+﻿
 #include "mpi.h"
 #include <iostream>
 #include <stdio.h>      /* printf, NULL */
 #include <stdlib.h>     /* srand, rand */
-// TODO: add mpi
+
 
 float f(double x, double y, double z) {
-	// TODO
-	// return 1;
+
     return x * y * y * z * z * z;
 }
 
@@ -23,33 +21,32 @@ float g(double x, double y, double z) {
 		return 0;
 	return f(x, y, z);
 }
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {	
+
 	int size, rank;
+	int x, y;
+	double epsilon;
 	MPI_Status status;
+	
+	epsilon = atof(argv[1]);
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	double start_time, finish_time;
-	// printf("Current process: %d, Total amount of processes: %d\n", rank, size);
-	const float ANALYTIC_INTEGRAL_VALUE = 1. / (13 * 28); // TODO
-	const int BATCH_SIZE = 1024;
-	// const MPI_INT BATCH_SIZE = 1024;
+
+	const float ANALYTIC_INTEGRAL_VALUE = 1. / (13 * 28); 
+	const int BATCH_SIZE = 4;
 	const int DIMENSIONALITY = 3;
 	double PARALLELEPIPED_LOWER_BOUNDS[] = { 0, 0, 0 };
 	double PARALLELEPIPED_UPPER_BOUNDS[] = { 1, 1, 1 };
 	double local_point[DIMENSIONALITY];
-	// TODO: Это не значение интеграла, это сумма
+
 	double monte_carlo_sum = 0;
-	double monte_carlo_integral_value = 0; // TODO: Это везде или только на нулевом процессе?
+	double monte_carlo_integral_value = 0; 
 	double monte_carlo_batch;
 	double step_monte_carlo_sum = 0;
-	// TODO: Это считывать с консоли, пока захардкодю
-	// double epsilon = 1.0e-9;// TODO atof(argv[0]);
-	double epsilon = 0.8e-5;
-	
-	// double local_points[BATCH_SIZE * DIMENSIONALITY];// TODO: Не надо? Пусть точки обрабатываются потоково
-	
+
 	int i, j;
 	int overall_num_points = 0;
 	int num_batch_processed_points = 0;
@@ -62,13 +59,12 @@ int main(int argc, char** argv)
 		parallelepiped_volume *= PARALLELEPIPED_UPPER_BOUNDS[i] - PARALLELEPIPED_LOWER_BOUNDS[i];
 
 	srand(rank);
-	printf("Current process: %d, Total amount of processes: %d\n", rank, size);
-	// TODO: В каждом процессе srand() с номером процессора
+	// printf("Current process: %d, Total amount of processes: %d\n", rank, size);
 
 	int k = 0;
 	start_time = MPI_Wtime();
 	while (abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon) {
-	// for (int m = 0; m < 10;m++) {
+
 		monte_carlo_batch = 0.;
 		num_batch_processed_points = 0;
 		// Создание и обработка случайных точек
@@ -87,42 +83,23 @@ int main(int argc, char** argv)
 		MPI_Reduce(&monte_carlo_batch, &step_monte_carlo_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 		MPI_Reduce(&num_batch_processed_points, &step_num_points, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 		if (rank == 0) {
-			// printf("ANALYTIC_INTEGRAL_VALUE %f\n", ANALYTIC_INTEGRAL_VALUE);
-			// printf("monte_carlo_integral_value %f\n", monte_carlo_integral_value);
-			// printf("epsilon %f\n", epsilon);
-			// printf("abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) %f\n", abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value));
-			// printf("abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon %i\n---\n", abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon);
-			// printf("monte_carlo_step_sum %f\n", step_monte_carlo_sum);
-			// printf("step_num_points %f\n", step_num_points);
-			// printf("monte_carlo_integral_value %f\n", monte_carlo_integral_value);
-			//printf("overall_num_points %i\n", overall_num_points);
-			// printf("num_batch_processed_point %i\n", num_batch_processed_points);
-			// TODO: Ошибка в том, что я затираю старые результаты. Надо переделать REDUCE.
-			// printf("Step %i. Monte Carlo integral value: %f %f %f\n", k, monte_carlo_integral_value, ANALYTIC_INTEGRAL_VALUE, epsilon);
 			overall_num_points += step_num_points;
 			monte_carlo_sum += step_monte_carlo_sum;
 
 			monte_carlo_integral_value = monte_carlo_sum * parallelepiped_volume / overall_num_points;
-			
 
-			// printf("Current process: %d, Total amount of processes: %d\n", nPr, size);
-			
 		}
 		MPI_Bcast(&monte_carlo_integral_value, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-		printf("Step %i, rank %i. Monte Carlo integral value: %.8f %.8f %.8f\n", k, rank, monte_carlo_integral_value, ANALYTIC_INTEGRAL_VALUE, epsilon);
-		
-	}
-	printf("--\n\nANALYTIC_INTEGRAL_VALUE %f\n", ANALYTIC_INTEGRAL_VALUE);
-	printf("monte_carlo_integral_value %f\n", monte_carlo_integral_value);
-	printf("epsilon %f\n", epsilon);
-	printf("abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) %f\n", abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value));
-	printf("abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon %i\n---\n", abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon);
 
+	}
 
 	finish_time = MPI_Wtime();
-	if (rank == 0)
-		printf("Execution time: %f\n", (finish_time - start_time) );
-	
+	if (rank == 0) {
+		double execution_time = finish_time - start_time;
+		double error = abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value);
+		printf("%.12f %.12f %i %.12f\n", monte_carlo_integral_value, error, overall_num_points, execution_time);
+		// printf("Execution time: %f\n", (finish_time - start_time));
+	}
 	
 	
 	MPI_Finalize();
