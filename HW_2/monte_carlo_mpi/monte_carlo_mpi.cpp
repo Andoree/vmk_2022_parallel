@@ -1,9 +1,10 @@
 ﻿
+
 #include "mpi.h"
 #include <iostream>
 #include <stdio.h>      /* printf, NULL */
 #include <stdlib.h>     /* srand, rand */
-
+#include <cmath>
 
 float f(double x, double y, double z) {
 
@@ -65,8 +66,8 @@ int main(int argc, char* argv[])
 
 	int k = 0;
 	start_time = MPI_Wtime();
-	while (abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon && patience < PATIENCE) {
-		if (abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) < epsilon) {
+	while (fabs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) >= epsilon && patience < PATIENCE) {
+		if (fabs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value) < epsilon) {
 			patience += 1;
 		}
 		else {
@@ -75,7 +76,6 @@ int main(int argc, char* argv[])
 
 		monte_carlo_batch = 0.;
 		num_batch_processed_points = 0;
-		// Создание и обработка случайных точек
 		for (i = 0; i < BATCH_SIZE; i++) {
 			for (j = 0; j < DIMENSIONALITY; j++) {
 				random_double = (double)rand() / RAND_MAX;
@@ -103,8 +103,8 @@ int main(int argc, char* argv[])
 	finish_time = MPI_Wtime();
 	if (rank == 0) {
 		double execution_time = finish_time - start_time;
-		double error = abs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value);
-		printf("%.12f %.12f %i %.12f\n", monte_carlo_integral_value, error, overall_num_points, execution_time);
+		double error = fabs(ANALYTIC_INTEGRAL_VALUE - monte_carlo_integral_value);
+		printf("%.12f %.16f %ld %.12f\n", monte_carlo_integral_value, error, overall_num_points, execution_time);
 	}
 
 
