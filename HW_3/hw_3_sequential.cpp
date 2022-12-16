@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <cmath>
 #include <stdio.h>
-
+#include <time.h>
 
 // Вариант 4
 // u_4 = 1 + cos(pi * x * y)
@@ -236,8 +236,8 @@ int main(int argc, char** argv) {
 
     int M = atoi(argv[1]);
     int N = atoi(argv[2]);
-    // int M = 25;
-    // int N = 25;
+    // int M = 120;
+    //int N = 120;
     
 
     const double EPS = 1e-6;
@@ -245,6 +245,7 @@ int main(int argc, char** argv) {
     const double h_2 = 1. / (double)N;
     double tau = 0.;
     double last_solution_update_norm;
+    time_t begin, end;
 
     double** B = (double**)malloc((M + 1) * sizeof(double*));
     for (int i = 0; i <= M; i++)
@@ -272,6 +273,9 @@ int main(int argc, char** argv) {
     
     // Инициализация сетки
     init_grid(w, h_1, h_2, M, N);
+
+    time(&begin);
+
     // Инициализация правой части уравнения
     equation_right_part(B, M, N, h_1, h_2);
     
@@ -306,6 +310,9 @@ int main(int argc, char** argv) {
         }
 
     }
+    time(&end);
+    time_t elapsed = end - begin;
+
     for (int i = 0; i <= M; i++) {
         for (int j = 0; j <= N; j++) {
             real_u[i][j] = u_4(i * h_1, j * h_2);
@@ -316,11 +323,11 @@ int main(int argc, char** argv) {
         for (int j = 0; j <= N; j++)
             error_matrix[i][j] = real_u[i][j] - w[i][j];
     double error_scalar = euclidean_norm(error_matrix, h_1, h_2, M, N);
-    // printf("W WHATT??? \n");
-    // printf("Error value:\n", error_scalar);
+
      for (int i = 0; i <= M; i++)
          for (int j = 0; j <= N; j++)
             printf("%.10f,%.10f\n", w[i][j], real_u[i][j]);
+    printf("Execution time: %ld seconds.\n", elapsed);
     printf("Error value: %.10f\n", error_scalar);
     return 0;
 }
