@@ -134,7 +134,8 @@ void equation_right_part(double** B, int M, int N, double h_1, double h_2) {
     // Левый верхний угол
     B[0][N] = u_4(0., N * h_2);
     // Тип 3 + Тип 3, верхний правый угол
-    B[M][N] = F(M * h_1, N * h_2) + (2. / h_1) * psi_right_border(M * h_1, N * h_2) + (2. / h_2) * psi_top_border(M * h_1, N * h_2);
+    B[M][N] = F(M * h_1, N * h_2) + (2. / h_1) * psi_right_border(M * h_1, N * h_2) 
+    + (2. / h_2) * psi_top_border(M * h_1, N * h_2);
     
 }
 
@@ -175,7 +176,7 @@ void equation_left_part(double** w, double** r, double h_1, double h_2, int M, i
     // Правый верхний угол - тип 3 + тип 3
     r[M][N] = -(2. / h_1) * delta_h_w_ij_x_left_part(w, M, N, M, h_1, h_2)
      -(2. / h_2) * delta_h_w_ij_y_bottom_part(w, M, N, M, h_1, h_2)
-       + ((1. / h_1) + (1. / h_2)) * w[M][N];
+       + ((2. / h_1) + (2. / h_2)) * w[M][N];
     
     
 }
@@ -237,7 +238,7 @@ int main(int argc, char** argv) {
     int M = atoi(argv[1]);
     int N = atoi(argv[2]);
     // int M = 120;
-    //int N = 120;
+    // int N = 120;
     
 
     const double EPS = 1e-6;
@@ -318,13 +319,29 @@ int main(int argc, char** argv) {
             real_u[i][j] = u_4(i * h_1, j * h_2);
         }
     }
+    /*
+    printf("Real U\n");
+    for (int i = 0; i <= M; i++) {
+        for (int j = 0; j <= N; j++) {
+            printf("%.7f ", real_u[i][j]);
+        }
+        printf("\n");
+    }
+    printf("Approximate solution W\n");
+    for (int i = 0; i <= M; i++) {
+        for (int j = 0; j <= N; j++) {
+            printf("%.7f ", w[i][j]);
+        }
+        printf("\n");
+    }
+    */
 
     for (int i = 0; i <= M; i++)
         for (int j = 0; j <= N; j++)
             error_matrix[i][j] = real_u[i][j] - w[i][j];
     double error_scalar = euclidean_norm(error_matrix, h_1, h_2, M, N);
 
-     for (int i = 0; i <= M; i++)
+    for (int i = 0; i <= M; i++)
          for (int j = 0; j <= N; j++)
             printf("%.10f,%.10f\n", w[i][j], real_u[i][j]);
     printf("Execution time: %ld seconds.\n", elapsed);
