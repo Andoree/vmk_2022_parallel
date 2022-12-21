@@ -265,7 +265,6 @@ void equation_left_part(double** w, double* top_row_of_bottom_neighbor, double* 
     // Глобальная левая граница (тип 1), но сосед сверху есть
     if (top_neighbor_proc_id != -1 && left_neighbor_proc_id == -1) {
         r[0][local_N] = phi(local_x_start * h_1, (local_y_start + local_N) * h_2);
-            // TODO
     }
     // Левый верхний угол локального не касается границ глобального прямоугольника
     if (top_neighbor_proc_id != -1 && left_neighbor_proc_id != -1) {
@@ -498,11 +497,11 @@ void borders_exchange(double** local_area,
 
 int main(int argc, char** argv) {
 
-    // const int M = atoi(argv[1]);
-    // const int N = atoi(argv[2]);
+    const int M = atoi(argv[1]);
+    const int N = atoi(argv[2]);
 
-    const int M = 250;
-    const int N = 250;
+    const int M = 120;
+    const int N = 120;
 
 
     double EPS = 1e-6;
@@ -751,7 +750,7 @@ int main(int argc, char** argv) {
 
     if (rank == 0) {
         printf("ERROR %.10f\n", global_error);
-        printf("M %dm N %d, Execution time: %.10f\n", M, N, execution_time);
+        printf("Execution time: %.10f\n", execution_time);
         // printf("size ,  M , N   , time        , boost      , max_diff\n");
         // printf("%d   &  %d \\times %d & %.10f  & %.10f\n", size, M, N, global_time_diff, global_error);
     }
