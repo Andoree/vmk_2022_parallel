@@ -6,9 +6,8 @@
 #include <stdio.h>      
 #include <stdlib.h>    
 #include <cmath>
+#include <omp.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
-#define MAX(a,b) (((a)>(b))?(a):(b))
 
 // Вариант 4
 // u_4 = 1 + cos(pi * x * y)
@@ -87,15 +86,16 @@ double delta_h_w_ij_y_bottom_part(double** w, int i, int j, double global_x, dou
 }
 
 
-int log2_(int num) {
-    if (num <= 0)
-        return -1;
+int log_2(int x) {
     int power = 0;
-    while ((num & 1) == 0) {
-        ++power;
-        num = num >> 1;
+    if (x <= 0)
+        return -1;
+    
+    while ((x & 1) == 0) {
+        power += 1;
+        x = x >> 1;
     }
-    if ((num >> 1) != 0)
+    if ((x >> 1) != 0)
         return -1;
     return power;
 }
@@ -107,7 +107,7 @@ int split(int M, int N, int power) {
     for (int i = 0; i < power; i++) {
         if (m > n) {
             m /= 2.0;
-            ++px;
+            px += 1;
         }
         else {
             n /= 2.0;
@@ -141,9 +141,10 @@ void equation_left_part(double** w, double* top_row_of_bottom_neighbor, double* 
 
     double global_x;
     double global_y;
-    
-    for (int i = 1; i < local_M; i++) {
-        for (int j = 1; j < local_N; j++) {
+    int i, j;
+    #pragma omp parallel for  private(i, j, global_x, global_y)
+    for (i = 1; i < local_M; i++) {
+        for (j = 1; j < local_N; j++) {
             global_x = (local_x_start + i) * h_1;
             global_y = (local_y_start + j) * h_2;
             r[i][j] = -(delta_h_w_ij_x_right_part(w, i, j, global_x, global_y, h_1, h_2)
@@ -153,7 +154,8 @@ void equation_left_part(double** w, double* top_row_of_bottom_neighbor, double* 
         }
     }
     
-    for (int i = 1; i < local_M; i++) {
+    #pragma omp parallel for  private(i, global_x, global_y)
+    for (i = 1; i < local_M; i++) {
         global_x = (local_x_start + i) * h_1;
         global_y = local_y_start * h_2;
 
@@ -188,8 +190,8 @@ void equation_left_part(double** w, double* top_row_of_bottom_neighbor, double* 
                     (bottom_row_of_top_neighbor[i] - w[i][local_N])));
         }
     }
-    
-    for (int j = 1; j < local_N; j++) {
+    #pragma omp parallel for  private(j, global_x, global_y)
+    for (j = 1; j < local_N; j++) {
         global_x = local_x_start * h_1;
         global_y = (local_y_start + j) * h_2;
         // Левая  граница - Тип 1 (phi = u), i = 0
@@ -351,20 +353,24 @@ void equation_right_part(double** B, int local_M, int local_N, int local_x_start
     int left_neighbor_proc_id, int right_neighbor_proc_id, int top_neighbor_proc_id, int bottom_neighbor_proc_id,
      double h_1, double h_2) {
 
-    for (int i = 0; i <= local_M; i++) {
-        for (int j = 0; j <= local_N; j++) {
+    int i, j;
+    #pragma omp parallel for private(i, j)
+    for (i = 0; i <= local_M; i++) {
+        for (j = 0; j <= local_N; j++) {
             B[i][j] = F((local_x_start + i) * h_1, (local_y_start + j) * h_2);
         }
     }
     // Если процесс содержит нижнюю границу глобального прямоугольника
     if (bottom_neighbor_proc_id == -1) {
-        for (int i = 0; i <= local_M; i++) {
+        #pragma omp parallel for  private(i)
+        for (i = 0; i <= local_M; i++) {
             B[i][0] = phi((local_x_start + i) * h_1, local_y_start * h_2);
         }
     }
     // Если процесс содержит верхнюю границу глобального прямоугольника
     if (top_neighbor_proc_id == -1) {
-        for (int i = 0; i <= local_M; i++) {
+        #pragma omp parallel for  private(i)
+        for (i = 0; i <= local_M; i++) {
             B[i][local_N] = F((local_x_start + i) * h_1, (local_y_start + local_N) * h_2) 
                 + (2. / h_2) * psi_top_border((local_x_start + i) * h_1, (local_y_start + local_N) * h_2);
         }
@@ -372,14 +378,16 @@ void equation_right_part(double** B, int local_M, int local_N, int local_x_start
     }
     // Если процесс содержит левую границу глобального прямоугольника
     if (left_neighbor_proc_id == -1) {
-        for (int j = 0; j <= local_N; j++) {
+        #pragma omp parallel for  private(j)
+        for (j = 0; j <= local_N; j++) {
             B[0][j] = phi(local_x_start * h_1, (local_y_start + j) * h_2);
         }
 
     }
     // Если процесс содержит правую границу глобального прямоугольника
     if (right_neighbor_proc_id == -1) {
-        for (int j = 0; j <= local_N; j++) {
+        #pragma omp parallel for  private(j)
+        for (j = 0; j <= local_N; j++) {
             B[local_M][j] = F((local_x_start + local_M) * h_1, (local_y_start + j) * h_2) + (2. / h_1) * psi_right_border((local_x_start + local_M) * h_1, (local_y_start + j) * h_2);
         }
 
@@ -435,10 +443,13 @@ double local_dot_product(double** u, double** v, double h_1, double h_2,
     double dot_p = 0.0;
     double inner_sum;
     int global_x, global_y;
-    for (int i = 0; i <= local_M; i++) {
+    int i, j;
+    // pragma omp parallel for  private(i)
+    #pragma omp parallel for private(i, j, global_x, global_y, inner_sum) reduction(+:dot_p)
+    for (i = 0; i <= local_M; i++) {
         global_x = local_x_start + i;
         inner_sum = 0.;
-        for (int j = 0; j <= local_N; j++) {
+        for (j = 0; j <= local_N; j++) {
             global_y = local_y_start + j;
             inner_sum += h_2 * rho(global_x, global_y, M, N) * u[i][j] * v[i][j];
         }
@@ -454,31 +465,29 @@ void borders_exchange(double** local_area,
     double* top_row_of_bottom_neighbor,  double* bottom_row_of_top_neighbor, double* left_column_of_right_neighbor, double* right_column_of_left_neighbor,
     int left_neighbor_proc_id, int right_neighbor_proc_id, int top_neighbor_proc_id, int bottom_neighbor_proc_id,
     int local_M, int local_N, MPI_Comm commutator) {
-
-    for (int i = 0; i <= local_M; i++) {
+    int i, j;
+    #pragma omp parallel for  private(i)
+    for (i = 0; i <= local_M; i++) {
         my_bottom_row[i] = local_area[i][0];
         my_top_row[i] = local_area[i][local_N];
     }
-    for (int j = 0; j <= local_N; j++) {
+    #pragma omp parallel for  private(j)
+    for (j = 0; j <= local_N; j++) {
         my_left_column[j] = local_area[0][j];
         my_right_column[j] = local_area[local_M][j];
     }
     MPI_Status status;
-
-    if (top_neighbor_proc_id != -1) {
-        MPI_Send(my_top_row, local_M + 1, MPI_DOUBLE, top_neighbor_proc_id, 0, commutator);
-    }
     if (bottom_neighbor_proc_id != -1) {
         MPI_Send(my_bottom_row, local_M + 1, MPI_DOUBLE, bottom_neighbor_proc_id, 0, commutator);
     }
     if (left_neighbor_proc_id != -1) {
         MPI_Send(my_left_column, local_N + 1, MPI_DOUBLE, left_neighbor_proc_id, 0, commutator);
     }
+    if (top_neighbor_proc_id != -1) {
+        MPI_Send(my_top_row, local_M + 1, MPI_DOUBLE, top_neighbor_proc_id, 0, commutator);
+    }
     if (right_neighbor_proc_id != -1) {
         MPI_Send(my_right_column, local_N + 1, MPI_DOUBLE, right_neighbor_proc_id, 0, commutator);
-    }
-    if (top_neighbor_proc_id != -1) {
-        MPI_Recv(bottom_row_of_top_neighbor, local_M + 1, MPI_DOUBLE, top_neighbor_proc_id, MPI_ANY_TAG, commutator, &status);
     }
     if (bottom_neighbor_proc_id != -1) {
         MPI_Recv(top_row_of_bottom_neighbor, local_M + 1, MPI_DOUBLE, bottom_neighbor_proc_id, MPI_ANY_TAG, commutator, &status);
@@ -486,6 +495,10 @@ void borders_exchange(double** local_area,
     if (left_neighbor_proc_id != -1) {
         MPI_Recv(right_column_of_left_neighbor, local_N + 1, MPI_DOUBLE, left_neighbor_proc_id, MPI_ANY_TAG, commutator, &status);
     }
+    if (top_neighbor_proc_id != -1) {
+        MPI_Recv(bottom_row_of_top_neighbor, local_M + 1, MPI_DOUBLE, top_neighbor_proc_id, MPI_ANY_TAG, commutator, &status);
+    }
+    
     if (right_neighbor_proc_id != -1) {
         MPI_Recv(left_column_of_right_neighbor, local_N + 1, MPI_DOUBLE, right_neighbor_proc_id, MPI_ANY_TAG, commutator, &status);
     }
@@ -500,9 +513,9 @@ int main(int argc, char** argv) {
     const int M = atoi(argv[1]);
     const int N = atoi(argv[2]);
 
-    const int M = 120;
-    const int N = 120;
-
+    // const int M = 150;
+    // const int N = 150;
+    
 
     double EPS = 1e-6;
     const double h_1 = 2. / (double)M;
@@ -538,7 +551,7 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if ((power = log2_(size)) == -1) {
+    if ((power = log_2(size)) == -1) {
         if (rank == 0)
             printf("error");
         MPI_Finalize();
@@ -559,9 +572,9 @@ int main(int argc, char** argv) {
 
     MPI_Cart_coords(commutator, rank, ndims, coords);
     // Находим глобальные координаты границ локального прямоугольника
-    local_x_start = MIN(rx, coords[0]) * (local_M + 1) + MAX(0, (coords[0] - rx)) * local_M;
+    local_x_start = std::min(rx, coords[0]) * (local_M + 1) + std::max(0, (coords[0] - rx)) * local_M;
     local_x_end = local_x_start + local_M + (coords[0] < rx ? 1 : 0);
-    local_y_start = MIN(ry, coords[1]) * (local_N + 1) + MAX(0, (coords[1] - ry)) * local_N;
+    local_y_start = std::min(ry, coords[1]) * (local_N + 1) + std::max(0, (coords[1] - ry)) * local_N;
     local_y_end = local_y_start + local_N + (coords[1] < ry ? 1 : 0);
 
     local_M = local_x_end - local_x_start;
